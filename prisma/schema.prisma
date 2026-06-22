@@ -1,0 +1,313 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String       @id @default(cuid())
+  email         String       @unique
+  passwordHash  String?
+  name          String?
+  role          GlobalRole   @default(USER)
+  workspaces    WorkspaceMember[]
+  auditLogs     AuditLog[]
+  profile       UserProfile?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model UserProfile {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  companyName         String?
+  jobTitle            String?
+  phoneNumber         String?
+  timezone            String?
+  language            String?
+  defaultSenderName   String?
+  defaultSenderEmail  String?
+  signature           String?  @db.Text
+  brandLogoUrl        String?
+  brandPrimaryColor   String?  @default("#2D151F")
+  brandSecondaryColor String?  @default("#F4F3DC")
+  emailFooter         String?  @db.Text
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum GlobalRole {
+  SUPER_ADMIN
+  USER
+}
+
+model Workspace {
+  id             String            @id @default(cuid())
+  name           String
+  settings       Json?             @default("{}")
+  members        WorkspaceMember[]
+  smtpProfiles   SMTPProfile[]
+  senderProfile  SenderProfile?
+  contacts       Contact[]
+  lists          List[]
+  campaigns      Campaign[]
+  quickEmails    QuickEmail[]
+  templates      Template[]
+  domains        Domain[]
+  workflows      AutomationWorkflow[]
+  auditLogs      AuditLog[]
+  media          Media[]
+  aiRequests     AIRequest[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+model WorkspaceMember {
+  id          String    @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        WorkspaceRole
+  user        User      @relation(fields: [userId], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([userId, workspaceId])
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MANAGER
+  EDITOR
+  VIEWER
+}
+
+model Domain {
+  id                  String    @id @default(cuid())
+  workspaceId         String
+  domainName          String
+  spfVerified         Boolean   @default(false)
+  dkimVerified        Boolean   @default(false)
+  dmarcVerified       Boolean   @default(false)
+  trackingDomain      String?
+  deliverabilityScore Float?
+  workspace           Workspace @relation(fields: [workspaceId], references: [id])
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@unique([workspaceId, domainName])
+}
+
+model AutomationWorkflow {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  triggerType String    
+  nodes       Json      
+  edges       Json
+  isActive    Boolean   @default(false)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model AuditLog {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  userId        String?
+  action        String
+  entity        String
+  previousState Json?
+  newState      Json?
+  ipAddress     String?
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  user          User?     @relation(fields: [userId], references: [id])
+  createdAt     DateTime  @default(now())
+}
+
+model SenderProfile {
+  id            String    @id @default(cuid())
+  workspaceId   String    @unique
+  senderName    String?
+  senderEmail   String?
+  replyToEmail  String?
+  companyName   String?
+  designation   String?
+  phone         String?
+  website       String?
+  logoUrl       String?
+  brandColor    String?
+  signature     String?   @db.Text
+  footer        String?   @db.Text
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model SMTPProfile {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  provider    String    @default("CUSTOM")
+  host        String
+  port        Int
+  username    String
+  senderName  String
+  senderEmail String
+  encryption  EncryptionType
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  campaigns   Campaign[]
+  quickEmails QuickEmail[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+enum EncryptionType {
+  TLS
+  SSL
+  NONE
+  STARTTLS
+}
+
+model Contact {
+  id          String    @id @default(cuid())
+  workspaceId String
+  email       String
+  firstName   String?
+  lastName    String?
+  attributes  Json?
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  lists       List[]
+  tags        Tag[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, email])
+}
+
+model List {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  contacts    Contact[]
+}
+
+model Tag {
+  id          String    @id @default(cuid())
+  name        String
+  workspaceId String
+  contacts    Contact[]
+}
+
+model Template {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  content     Json      
+  html        String    
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  campaigns   Campaign[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Campaign {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  name          String
+  subject       String
+  smtpProfileId String
+  templateId    String
+  status        CampaignStatus @default(DRAFT)
+  scheduledAt   DateTime?
+  audience      Json?
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  smtpProfile   SMTPProfile @relation(fields: [smtpProfileId], references: [id])
+  template      Template  @relation(fields: [templateId], references: [id])
+  logs          EmailLog[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  COMPLETED
+  PAUSED
+  ARCHIVED
+}
+
+model EmailLog {
+  id          String    @id @default(cuid())
+  campaignId  String
+  contactId   String
+  status      DeliveryStatus
+  openedAt    DateTime?
+  clickedAt   DateTime?
+  bouncedAt   DateTime?
+  campaign    Campaign  @relation(fields: [campaignId], references: [id])
+  createdAt   DateTime  @default(now())
+}
+
+enum DeliveryStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+  BOUNCED
+}
+
+model AIRequest {
+  id          String    @id @default(cuid())
+  workspaceId String
+  prompt      String    @db.Text
+  provider    String    
+  response    String    @db.Text
+  tokensUsed  Int       @default(0)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  createdAt   DateTime  @default(now())
+}
+
+model Media {
+  id          String    @id @default(cuid())
+  workspaceId String
+  url         String
+  fileName    String
+  fileType    String    
+  sizeBytes   Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  createdAt   DateTime  @default(now())
+}
+
+model ActivityLog {
+  id          String    @id @default(cuid())
+  workspaceId String
+  userId      String?
+  description String    @db.Text
+  createdAt   DateTime  @default(now())
+}
+
+model SystemSetting {
+  id          String    @id @default(cuid())
+  key         String    @unique
+  value       Json
+  updatedAt   DateTime  @updatedAt
+}
+
+model QuickEmail {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  subject       String
+  body          String    @db.Text
+  to            Json      
+  cc            Json?
+  bcc           Json?
+  status        CampaignStatus @default(DRAFT)
+  smtpProfileId String
+  attachments   Json?
+  workspace     Workspace @relation(fields: [workspaceId], references: [id])
+  smtpProfile   SMTPProfile @relation(fields: [smtpProfileId], references: [id])
+  createdAt     DateTime  @default(now())
+}
