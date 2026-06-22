@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { SmtpAuthDialog } from '@/components/modules/smtp/SmtpAuthDialog';
 import { testSmtpConnection, updateSmtpProfile, deleteSmtpProfile, createSmtpProfile } from '@/modules/smtp/actions';
+import { ConfirmActionDialog } from '@/components/ui/ConfirmActionDialog';
 
 const PRESETS = {
   gmail: { provider: 'GMAIL', host: 'smtp.gmail.com', port: 587, encryption: 'STARTTLS' },
@@ -279,24 +280,16 @@ export default function SmtpDashboardClient({ initialProfiles }: { initialProfil
         </div>
       )}
 
-      {/* Delete Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-background border shadow-xl rounded-xl w-full max-w-md p-6 text-center animate-in zoom-in-95 duration-200">
-            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 flex items-center justify-center mx-auto mb-4">
-              <Trash2 className="w-6 h-6" />
-            </div>
-            <h3 className="text-lg font-bold mb-2">Delete SMTP Profile?</h3>
-            <p className="text-sm text-muted-foreground mb-6">Are you sure you want to delete <strong>{activeProfile?.name}</strong>? This action cannot be undone.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setShowDeleteModal(false)} className="flex-1 py-2 font-medium rounded-md border hover:bg-accent" disabled={isSubmitting}>Cancel</button>
-              <button onClick={handleDelete} className="flex-1 py-2 font-medium rounded-md bg-red-600 text-white hover:bg-red-700" disabled={isSubmitting}>
-                {isSubmitting ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmActionDialog 
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDelete}
+        title="Delete SMTP Profile?"
+        message={<span>Are you sure you want to delete <strong>{activeProfile?.name}</strong>? This action cannot be undone.</span>}
+        confirmText="Delete"
+        danger={true}
+        isLoading={isSubmitting}
+      />
 
       <SmtpAuthDialog 
         isOpen={showAuthDialog}

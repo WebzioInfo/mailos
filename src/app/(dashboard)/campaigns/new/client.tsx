@@ -6,10 +6,10 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { createCampaign } from "@/modules/campaigns/actions";
-import { AudiencePicker } from "@/components/modules/campaigns/AudiencePicker";
+import { EnterpriseAudienceBuilder } from "@/components/modules/campaigns/EnterpriseAudienceBuilder";
 import { SmtpAuthDialog } from "@/components/modules/smtp/SmtpAuthDialog";
 
-export default function CampaignWizardClient({ templates, smtpProfiles, lists, tags }: any) {
+export default function CampaignWizardClient({ templates, smtpProfiles, contacts, lists, tags }: any) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,9 +37,10 @@ export default function CampaignWizardClient({ templates, smtpProfiles, lists, t
     }
     if (step === 2) {
       const hasRecipients = audienceConfig.selectAllContacts || 
-                            audienceConfig.manualEmails.length > 0 || 
-                            audienceConfig.includedLists.length > 0 || 
-                            audienceConfig.includedTags.length > 0;
+                            (audienceConfig.manualEmails?.length || 0) > 0 || 
+                            (audienceConfig.includedLists?.length || 0) > 0 || 
+                            (audienceConfig.includedTags?.length || 0) > 0 ||
+                            (audienceConfig.includedContacts?.length || 0) > 0;
       if (!hasRecipients) {
         return toast.error("Please select at least one recipient.");
       }
@@ -79,9 +80,17 @@ export default function CampaignWizardClient({ templates, smtpProfiles, lists, t
     if (result?.error) {
       setIsSubmitting(false);
       throw new Error(result.error);
-    } else {
-      toast.success(status === 'SENDING' ? "Campaign Launched!" : "Draft Saved!");
-      if (status === 'SENDING') setShowAuthDialog(false);
+    } 
+
+    if (status === 'DRAFT' || status === 'SCHEDULED') {
+      toast.success("Draft Saved!");
+      router.push('/campaigns');
+      return;
+    }
+
+    if (status === 'SENDING') {
+      setShowAuthDialog(false);
+      toast.success("Campaign Queued for Delivery!");
       router.push('/campaigns');
     }
   };
@@ -91,12 +100,11 @@ export default function CampaignWizardClient({ templates, smtpProfiles, lists, t
   };
 
   const getRecipientSummary = () => {
-    let count = 0;
-    if (audienceConfig.selectAllContacts) return 'All Workspace Contacts';
-    if (audienceConfig.manualEmails.length > 0) count += audienceConfig.manualEmails.length;
-    if (audienceConfig.includedLists.length > 0) count += audienceConfig.includedLists.length * 10;
-    if (audienceConfig.includedTags.length > 0) count += audienceConfig.includedTags.length * 5;
-    return `${count} approximated recipient(s)`;
+    if (audienceConfig.totalRecipients !== undefined) {
+      return `${audienceConfig.totalRecipients} exact recipient(s)`;
+    }
+    // Fallback if not calculated yet
+    return `0 recipient(s)`;
   };
 
   return (
@@ -156,7 +164,13 @@ export default function CampaignWizardClient({ templates, smtpProfiles, lists, t
           {step === 2 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
               <h2 className="text-xl font-bold border-b pb-4">Target Audience</h2>
-              <AudiencePicker lists={lists || []} tags={tags || []} onChange={setAudienceConfig} />
+              <EnterpriseAudienceBuilder 
+                contacts={contacts || []}
+                lists={lists || []} 
+                tags={tags || []} 
+                initialSelections={audienceConfig}
+                onChange={setAudienceConfig} 
+              />
             </div>
           )}
 
@@ -183,6 +197,25 @@ export default function CampaignWizardClient({ templates, smtpProfiles, lists, t
                   </div>
                 </div>
               </div>
+              {audienceConfig.resolvedRecipients && audienceConfig.resolvedRecipients.length > 0 && (
+                <div className="border rounded-xl p-4 bg-background">
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Users className="w-4 h-4"/> Selected Recipients Preview</h3>
+                  <div className="max-h-64 overflow-y-auto space-y-2 border rounded p-4 bg-slate-50 dark:bg-zinc-900">
+                    {audienceConfig.resolvedRecipients.slice(0, 20).map((r: any, i: number) => (
+                      <div key={i} className="text-sm border-b border-border pb-2 last:border-0 last:pb-0">
+                        {r.name && <div className="font-medium">{r.name}</div>}
+                        <div className="text-muted-foreground">{r.email}</div>
+                      </div>
+                    ))}
+                    {audienceConfig.resolvedRecipients.length > 20 && (
+                      <div className="text-xs text-muted-foreground text-center pt-2">
+                        + {audienceConfig.resolvedRecipients.length - 20} more recipients
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="border rounded-xl p-4 bg-background">
                 <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Eye className="w-4 h-4"/> Template Content Preview</h3>
                 <div className="p-4 border rounded bg-slate-50 overflow-hidden h-64 text-xs font-mono text-muted-foreground">
@@ -199,7 +232,7 @@ export default function CampaignWizardClient({ templates, smtpProfiles, lists, t
               </div>
               <h2 className="text-2xl font-bold mb-2">Ready for Liftoff</h2>
               <p className="text-muted-foreground max-w-md text-center mb-8">
-                You are about to launch <span className="font-semibold text-foreground">"{name}"</span> to approximately <span className="font-semibold text-foreground">{getRecipientSummary()}</span>.
+                You are about to launch <span className="font-semibold text-foreground">"{name}"</span> securely to <span className="font-semibold text-foreground">{getRecipientSummary()}</span>.
               </p>
               
               <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 p-4 rounded-lg border border-blue-200 dark:border-blue-800 text-sm max-w-md text-center">

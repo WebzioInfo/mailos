@@ -122,6 +122,10 @@ export async function deleteContact(id: string) {
     await prisma.contact.delete({
       where: { id }
     });
+    
+    const { revalidatePath } = await import('next/cache');
+    revalidatePath('/contacts');
+    
     return { success: true };
   } catch (error) {
     return { error: 'Failed to delete contact.' };

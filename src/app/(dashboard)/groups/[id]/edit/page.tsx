@@ -14,9 +14,12 @@ export default async function EditGroupPage({ params }: { params: Promise<{ id: 
 
   const resolvedParams = await params;
 
-  const group = await prisma.list.findUnique({
+  const groupId = resolvedParams.id;
+  if (!groupId) redirect('/groups');
+
+  const group = await prisma.list.findFirst({
     where: { 
-      id: resolvedParams.id,
+      id: groupId,
       workspaceId: session.workspaceId as string
     }
   });

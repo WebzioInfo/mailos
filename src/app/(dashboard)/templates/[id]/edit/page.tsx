@@ -13,9 +13,12 @@ export default async function EditTemplatePage({ params }: { params: Promise<{ i
   const session = await verifyToken(token);
   if (!session || !session.workspaceId) redirect('/login');
 
-  const template = await prisma.template.findUnique({
+  const templateId = id;
+  if (!templateId) redirect('/templates');
+
+  const template = await prisma.template.findFirst({
     where: { 
-      id: id,
+      id: templateId,
       workspaceId: session.workspaceId as string
     }
   });

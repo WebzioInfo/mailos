@@ -14,10 +14,13 @@ export default async function EditCampaignPage({ params }: { params: Promise<{ i
 
   const resolvedParams = await params;
 
+  const campaignId = resolvedParams.id;
+  if (!campaignId) redirect('/campaigns');
+
   const [campaign, smtpProfiles, templates, contacts, lists, tags] = await Promise.all([
-    prisma.campaign.findUnique({
+    prisma.campaign.findFirst({
       where: { 
-        id: resolvedParams.id,
+        id: campaignId,
         workspaceId: session.workspaceId as string
       }
     }),
@@ -31,7 +34,11 @@ export default async function EditCampaignPage({ params }: { params: Promise<{ i
     }),
     prisma.contact.findMany({
       where: { workspaceId: session.workspaceId as string },
-      select: { id: true, email: true, firstName: true, lastName: true }
+      select: { 
+        id: true, email: true, firstName: true, lastName: true, attributes: true,
+        lists: { select: { id: true } },
+        tags: { select: { id: true } }
+      }
     }),
     prisma.list.findMany({
       where: { workspaceId: session.workspaceId as string },

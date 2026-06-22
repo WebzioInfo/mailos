@@ -6,6 +6,7 @@ import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 
 import nodemailer from 'nodemailer';
+import { startCampaignDelivery } from '@/lib/deliveryEngine';
 import { resolveAudience } from '@/modules/campaigns/audience';
 
 const campaignSchema = z.object({
@@ -34,13 +35,16 @@ export async function createCampaign(prevState: any, formData: FormData) {
     templateId: formData.get('templateId') as string,
     smtpProfileId: formData.get('smtpProfileId') as string,
     status: formData.get('status') as string || 'DRAFT',
-    scheduledAt: formData.get('scheduledAt') as string,
+    scheduledAt: formData.get('scheduledAt') as string || undefined,
     audience: formData.get('audience') as string,
     smtpPassword: formData.get('smtpPassword') as string,
   };
 
   const validated = campaignSchema.safeParse(rawData);
-  if (!validated.success) return { error: 'Invalid campaign data' };
+  if (!validated.success) {
+    const errorMessages = validated.error.issues.map((err: z.ZodIssue) => err.message).join(", ");
+    return { error: `Validation failed: ${errorMessages}` };
+  }
 
   if (validated.data.status === 'SENDING' && !rawData.smtpPassword) {
     return { error: 'SMTP Password is required to send campaign securely' };
@@ -83,49 +87,18 @@ export async function createCampaign(prevState: any, formData: FormData) {
       }
     });
     
-    // Inline Sending for Phase 1
+    // Trigger background delivery if sending
     if (validated.data.status === 'SENDING' && audience) {
-      try {
-        const transporter = nodemailer.createTransport({
-          host: smtpProfile.host,
-          port: smtpProfile.port,
-          secure: smtpProfile.port === 465, // true for 465, false for 587 and other ports (STARTTLS)
-          auth: {
-            user: smtpProfile.username,
-            pass: rawData.smtpPassword,
-          },
-          tls: { rejectUnauthorized: false }
-        });
-        
-        await transporter.sendMail({
-          from: `"${smtpProfile.senderName}" <${smtpProfile.senderEmail}>`,
-          to: audience.finalRecipients.map(r => r.email),
-          subject: validated.data.subject,
-          html: template.html,
-        });
-
-        await prisma.campaign.update({
-          where: { id: campaign.id },
-          data: { status: 'COMPLETED' }
-        });
-      } catch (sendError: any) {
-        console.error("Campaign Dispatch Error:", sendError);
-        let errorMessage = "Dispatch failed.";
-        if (sendError.responseCode === 535) {
-          errorMessage = "Authentication Failed: Invalid SMTP Password.";
-        } else if (sendError.code === 'ECONNREFUSED') {
-          errorMessage = "Connection Refused: SMTP host unreachable.";
-        } else if (sendError.message) {
-          errorMessage = sendError.message;
-        }
-
-        await prisma.campaign.update({
-          where: { id: campaign.id },
-          data: { status: 'PAUSED' }
-        });
-
-        return { error: errorMessage };
-      }
+      // Set to QUEUED initially
+      await prisma.campaign.update({
+        where: { id: campaign.id },
+        data: { status: 'QUEUED' as any }
+      });
+      
+      // Fire and forget background process
+      startCampaignDelivery(campaign.id, rawData.smtpPassword as string).catch(console.error);
+      
+      return { success: true, campaignId: campaign.id };
     }
     
     return { success: true, campaignId: campaign.id };
@@ -133,6 +106,8 @@ export async function createCampaign(prevState: any, formData: FormData) {
     return { error: 'Failed to launch campaign' };
   }
 }
+
+
 
 export async function updateCampaignStatus(campaignId: string, status: 'PAUSED' | 'SCHEDULED' | 'ARCHIVED' | 'DRAFT') {
   const session = await getUser();
@@ -187,12 +162,15 @@ export async function updateCampaign(campaignId: string, prevState: any, formDat
     templateId: formData.get('templateId') as string,
     smtpProfileId: formData.get('smtpProfileId') as string,
     status: formData.get('status') as string || 'DRAFT',
-    scheduledAt: formData.get('scheduledAt') as string,
+    scheduledAt: formData.get('scheduledAt') as string || undefined,
     audience: formData.get('audience') as string,
   };
 
   const validated = campaignSchema.safeParse(rawData);
-  if (!validated.success) return { error: 'Invalid campaign data' };
+  if (!validated.success) {
+    const errorMessages = validated.error.issues.map((err: z.ZodIssue) => err.message).join(", ");
+    return { error: `Validation failed: ${errorMessages}` };
+  }
 
   try {
     const audienceJson = rawData.audience ? JSON.parse(rawData.audience) : null;

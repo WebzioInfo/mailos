@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import { Send, Paperclip, Sparkles, X, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
-import { toast } from 'sonner';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { AdvancedRecipientPicker } from '@/components/modules/campaigns/AdvancedRecipientPicker';
+import { toast } from 'sonner';
+import { EnterpriseAudienceBuilder } from '@/components/modules/campaigns/EnterpriseAudienceBuilder';
 import { sendQuickEmail } from '@/modules/emails/actions';
 import { SmtpAuthDialog } from '@/components/modules/smtp/SmtpAuthDialog';
 
@@ -48,14 +48,10 @@ export default function QuickEmailClient({ smtpProfiles, contacts, lists, tags, 
   });
 
   const getRecipientSummary = () => {
-    let count = 0;
-    if (audienceConfig.selectAllContacts) return 'All Workspace Contacts';
-    if (audienceConfig.manualEmails.length > 0) count += audienceConfig.manualEmails.length;
-    if (audienceConfig.includedLists.length > 0) count += audienceConfig.includedLists.length * 10; // estimate
-    if (audienceConfig.includedTags.length > 0) count += audienceConfig.includedTags.length * 5; // estimate
-    
-    if (count === 0) return '';
-    return `${count} recipient(s) selected`;
+    if (audienceConfig.totalRecipients !== undefined) {
+      return `${audienceConfig.totalRecipients} exact recipient(s) selected`;
+    }
+    return '';
   };
 
   const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -75,9 +71,10 @@ export default function QuickEmailClient({ smtpProfiles, contacts, lists, tags, 
     if (!body) return toast.error('Email body is required');
 
     const hasRecipients = audienceConfig.selectAllContacts || 
-                          audienceConfig.manualEmails.length > 0 || 
-                          audienceConfig.includedLists.length > 0 || 
-                          audienceConfig.includedTags.length > 0;
+                          (audienceConfig.manualEmails?.length || 0) > 0 || 
+                          (audienceConfig.includedLists?.length || 0) > 0 || 
+                          (audienceConfig.includedTags?.length || 0) > 0 ||
+                          (audienceConfig.includedContacts?.length || 0) > 0;
                           
     if (!hasRecipients) return toast.error('Please select at least one recipient');
 
@@ -95,11 +92,11 @@ export default function QuickEmailClient({ smtpProfiles, contacts, lists, tags, 
 
     if (result?.error) {
       throw new Error(result.error);
-    } else {
-      toast.success('Email dispatched successfully');
-      setShowAuthDialog(false);
-      router.push('/dashboard');
-    }
+    } 
+
+    setShowAuthDialog(false);
+    toast.success("Quick Email Queued for Delivery!");
+    router.push('/dashboard');
   };
 
   return (
@@ -131,13 +128,13 @@ export default function QuickEmailClient({ smtpProfiles, contacts, lists, tags, 
             </div>
           </div>
 
-          <div className="flex items-start gap-3">
-            <span className="w-16 text-sm font-medium text-muted-foreground text-right mt-2">To:</span>
-            <div className="flex-1">
-              <AdvancedRecipientPicker 
-                contacts={contacts} 
-                lists={lists} 
-                tags={tags} 
+          <div className="flex flex-col gap-3">
+            <span className="text-sm font-medium text-muted-foreground">Select Audience:</span>
+            <div className="w-full">
+              <EnterpriseAudienceBuilder 
+                contacts={contacts || []} 
+                lists={lists || []} 
+                tags={tags || []} 
                 initialSelections={initialSelections}
                 onChange={(config) => setAudienceConfig(config)} 
               />

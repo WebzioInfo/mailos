@@ -6,6 +6,8 @@ import { verifyToken } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/db";
+import { DeliveryProgressProvider } from "@/components/providers/DeliveryProgressProvider";
+import { GlobalProgressCenter, ProgressNavIcon } from "@/components/ui/GlobalProgressCenter";
 
 async function getLayoutData() {
   const cookieStore = await cookies();
@@ -44,7 +46,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const data = await getLayoutData();
 
   return (
-    <div className="min-h-screen flex bg-slate-50 dark:bg-zinc-950">
+    <DeliveryProgressProvider>
+      <div className="min-h-screen flex bg-slate-50 dark:bg-zinc-950">
       {/* Sidebar */}
       <aside className="w-64 border-r bg-background flex flex-col sticky top-0 h-screen">
         <div className="h-16 flex items-center px-6 border-b">
@@ -72,6 +75,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <ProgressNavIcon />
             <Link href="/campaigns/new" className="h-8 px-4 bg-primary text-primary-foreground rounded-md text-sm font-medium flex items-center hover:bg-primary/90 transition-colors shadow-sm">
               New Campaign
             </Link>
@@ -81,6 +85,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {children}
         </div>
       </main>
+      <GlobalProgressCenter />
     </div>
+    </DeliveryProgressProvider>
   );
 }

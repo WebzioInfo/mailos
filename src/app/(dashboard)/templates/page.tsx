@@ -4,6 +4,7 @@ import prisma from "@/lib/db";
 import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { DeleteButton } from "@/components/ui/DeleteButton";
 
 export default async function TemplatesPage() {
   const cookieStore = await cookies();
@@ -53,9 +54,22 @@ export default async function TemplatesPage() {
               <h3 className="font-semibold">{tpl.name}</h3>
               <div className="flex items-center justify-between mt-1">
                 <p className="text-xs text-muted-foreground">Updated {new Date(tpl.updatedAt).toLocaleDateString()}</p>
-                <Link href={`/templates/${tpl.id}/edit`} className="text-xs text-primary font-medium hover:underline">
-                  Edit
-                </Link>
+                <div className="flex items-center gap-3">
+                  <Link href={`/templates/${tpl.id}/edit`} className="text-xs text-primary font-medium hover:underline">
+                    Edit
+                  </Link>
+                  <DeleteButton 
+                    itemType="Template"
+                    itemName={tpl.name}
+                    iconOnly={true}
+                    className="text-muted-foreground hover:text-red-500 transition-colors"
+                    onDelete={async () => {
+                      'use server';
+                      const { deleteTemplate } = await import('@/modules/templates/actions');
+                      await deleteTemplate(tpl.id);
+                    }}
+                  />
+                </div>
               </div>
             </div>
           ))

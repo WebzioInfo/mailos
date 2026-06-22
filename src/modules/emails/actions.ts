@@ -4,6 +4,7 @@ import prisma from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import { resolveAudience } from '@/modules/campaigns/audience';
+import { startQuickEmailDelivery } from '@/lib/deliveryEngine';
 
 import nodemailer from 'nodemailer';
 
@@ -69,25 +70,12 @@ export async function sendQuickEmail(data: {
       }
     });
 
-    // 5. Send actual email
+    // Verify SMTP before starting delivery
     try {
-      await transporter.sendMail({
-        from: `"${smtpProfile.senderName}" <${smtpProfile.senderEmail}>`,
-        to: audience.finalRecipients.map(r => r.email),
-        subject: data.subject,
-        html: data.body,
-      });
-
-      // Update to COMPLETED if successful
-      await prisma.quickEmail.update({
-        where: { id: quickEmail.id },
-        data: { status: 'COMPLETED' }
-      });
-
-      return { success: true, emailId: quickEmail.id, resolvedCount: audience.finalRecipients.length };
+      await transporter.verify();
     } catch (sendError: any) {
-      console.error("SMTP Dispatch Error:", sendError);
-      let errorMessage = "Dispatch failed.";
+      console.error("SMTP Setup Error:", sendError);
+      let errorMessage = "Dispatch setup failed.";
       if (sendError.responseCode === 535) {
         errorMessage = "Authentication Failed: Invalid SMTP Password.";
       } else if (sendError.code === 'ECONNREFUSED') {
@@ -96,17 +84,32 @@ export async function sendQuickEmail(data: {
         errorMessage = sendError.message;
       }
       
-      // Update to FAILED
       await prisma.quickEmail.update({
         where: { id: quickEmail.id },
-        data: { status: 'PAUSED' } // PAUSED is closest to failed in current enum
+        data: { status: 'PAUSED' }
       });
 
       return { error: errorMessage };
     }
+
+    // Set to QUEUED initially
+    await prisma.quickEmail.update({
+      where: { id: quickEmail.id },
+      data: { status: 'QUEUED' as any }
+    });
+
+    // Fire and forget background process
+    startQuickEmailDelivery(quickEmail.id, data.smtpPassword, audience.finalRecipients).catch(console.error);
+
+    return { 
+      success: true, 
+      emailId: quickEmail.id 
+    };
 
   } catch (error) {
     console.error('Failed to send quick email:', error);
     return { error: 'Failed to process email request' };
   }
 }
+
+

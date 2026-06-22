@@ -72,3 +72,27 @@ export async function updateTemplate(templateId: string, prevState: any, formDat
     return { error: 'Failed to update template' };
   }
 }
+
+export async function deleteTemplate(id: string) {
+  const session = await getUser();
+  if (!session || !session.workspaceId) return { error: 'Unauthorized' };
+
+  try {
+    const existing = await prisma.template.findFirst({
+      where: { id, workspaceId: session.workspaceId as string }
+    });
+
+    if (!existing) return { error: 'Template not found' };
+
+    await prisma.template.delete({
+      where: { id }
+    });
+    
+    const { revalidatePath } = await import('next/cache');
+    revalidatePath('/templates');
+    
+    return { success: true };
+  } catch (error) {
+    return { error: 'Failed to delete template' };
+  }
+}

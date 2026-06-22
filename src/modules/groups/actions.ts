@@ -79,6 +79,10 @@ export async function deleteGroup(id: string) {
     await prisma.list.delete({
       where: { id }
     });
+    
+    const { revalidatePath } = await import('next/cache');
+    revalidatePath('/groups');
+    
     return { success: true };
   } catch (error) {
     return { error: 'Failed to delete group' };

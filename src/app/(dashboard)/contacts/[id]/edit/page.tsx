@@ -14,9 +14,12 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
 
   const resolvedParams = await params;
 
-  const contact = await prisma.contact.findUnique({
+  const contactId = resolvedParams.id;
+  if (!contactId) redirect('/contacts');
+
+  const contact = await prisma.contact.findFirst({
     where: { 
-      id: resolvedParams.id,
+      id: contactId,
       workspaceId: session.workspaceId as string
     }
   });

@@ -222,6 +222,17 @@ model Campaign {
   status        CampaignStatus @default(DRAFT)
   scheduledAt   DateTime?
   audience      Json?
+  
+  // Delivery Tracking
+  totalRecipients     Int       @default(0)
+  processedRecipients Int       @default(0)
+  successfulRecipients Int      @default(0)
+  failedRecipients    Int       @default(0)
+  progressPercent     Float     @default(0)
+  startedAt           DateTime?
+  completedAt         DateTime?
+  errorMessage        String?   @db.Text
+
   workspace     Workspace @relation(fields: [workspaceId], references: [id])
   smtpProfile   SMTPProfile @relation(fields: [smtpProfileId], references: [id])
   template      Template  @relation(fields: [templateId], references: [id])
@@ -232,23 +243,28 @@ model Campaign {
 
 enum CampaignStatus {
   DRAFT
+  QUEUED
   SCHEDULED
   SENDING
   COMPLETED
   PAUSED
+  FAILED
   ARCHIVED
 }
 
 model EmailLog {
-  id          String    @id @default(cuid())
-  campaignId  String
-  contactId   String
-  status      DeliveryStatus
-  openedAt    DateTime?
-  clickedAt   DateTime?
-  bouncedAt   DateTime?
-  campaign    Campaign  @relation(fields: [campaignId], references: [id])
-  createdAt   DateTime  @default(now())
+  id             String    @id @default(cuid())
+  campaignId     String
+  contactId      String?
+  recipientEmail String
+  status         DeliveryStatus
+  messageId      String?
+  error          String?   @db.Text
+  openedAt       DateTime?
+  clickedAt      DateTime?
+  bouncedAt      DateTime?
+  campaign       Campaign  @relation(fields: [campaignId], references: [id])
+  createdAt      DateTime  @default(now())
 }
 
 enum DeliveryStatus {
@@ -307,7 +323,19 @@ model QuickEmail {
   status        CampaignStatus @default(DRAFT)
   smtpProfileId String
   attachments   Json?
+
+  // Delivery Tracking
+  totalRecipients     Int       @default(0)
+  processedRecipients Int       @default(0)
+  successfulRecipients Int      @default(0)
+  failedRecipients    Int       @default(0)
+  progressPercent     Float     @default(0)
+  startedAt           DateTime?
+  completedAt         DateTime?
+  errorMessage        String?   @db.Text
+
   workspace     Workspace @relation(fields: [workspaceId], references: [id])
   smtpProfile   SMTPProfile @relation(fields: [smtpProfileId], references: [id])
   createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
 }

@@ -15,8 +15,14 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   const session = await verifyToken(token);
   if (!session || !session.workspaceId) redirect('/login');
 
-  const campaign = await prisma.campaign.findUnique({
-    where: { id: id, workspaceId: session.workspaceId as string },
+  const campaignId = id;
+  if (!campaignId) redirect('/campaigns');
+
+  const campaign = await prisma.campaign.findFirst({
+    where: { 
+      id: campaignId,
+      workspaceId: session.workspaceId as string
+    },
     include: {
       template: true,
       smtpProfile: true,
@@ -66,18 +72,23 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
         <CampaignDetailClient campaignId={campaign.id} currentStatus={campaign.status} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="border rounded-xl p-6 bg-background shadow-sm space-y-2">
-          <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Clock className="w-4 h-4"/> Queue Status</h3>
-          <div className="text-3xl font-bold">{queuedCount} <span className="text-lg font-normal text-muted-foreground">queued</span></div>
+          <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Send className="w-4 h-4"/> Individual Emails Sent</h3>
+          <div className="text-3xl font-bold">{deliveredCount + sentCount}</div>
         </div>
         <div className="border rounded-xl p-6 bg-background shadow-sm space-y-2">
-          <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Send className="w-4 h-4"/> Delivered</h3>
-          <div className="text-3xl font-bold">{deliveredCount} <span className="text-lg font-normal text-muted-foreground">delivered</span></div>
+          <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Activity className="w-4 h-4"/> Successful</h3>
+          <div className="text-3xl font-bold text-green-600 dark:text-green-500">{deliveredCount}</div>
         </div>
         <div className="border rounded-xl p-6 bg-background shadow-sm space-y-2">
-          <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Activity className="w-4 h-4"/> Failed/Bounced</h3>
-          <div className="text-3xl font-bold">{failedCount} <span className="text-lg font-normal text-muted-foreground">failed</span></div>
+          <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2"><XCircle className="w-4 h-4"/> Failed</h3>
+          <div className="text-3xl font-bold text-red-600 dark:text-red-500">{failedCount}</div>
+        </div>
+        <div className="border rounded-xl p-6 bg-green-50 dark:bg-green-900/20 shadow-sm space-y-2 border-green-200 dark:border-green-900/50">
+          <h3 className="text-sm font-medium text-green-800 dark:text-green-400 flex items-center gap-2">Privacy Protected</h3>
+          <div className="text-3xl font-bold text-green-700 dark:text-green-500">YES</div>
+          <p className="text-xs text-green-700/80 dark:text-green-400/80 mt-1">1 email per recipient</p>
         </div>
       </div>
 

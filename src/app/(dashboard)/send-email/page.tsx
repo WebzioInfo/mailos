@@ -19,7 +19,11 @@ async function getPageData() {
     }),
     prisma.contact.findMany({
       where: { workspaceId: session.workspaceId as string },
-      select: { id: true, email: true, firstName: true, lastName: true }
+      select: { 
+        id: true, email: true, firstName: true, lastName: true, attributes: true,
+        lists: { select: { id: true } },
+        tags: { select: { id: true } }
+      }
     }),
     prisma.list.findMany({
       where: { workspaceId: session.workspaceId as string },

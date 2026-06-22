@@ -5,6 +5,7 @@ export interface AudienceConfig {
   selectAllContacts: boolean;
   includedLists: string[];
   includedTags: string[];
+  includedContacts?: string[];
   manualEmails: string[];
 }
 
@@ -23,14 +24,15 @@ export async function resolveAudience(workspaceId: string, config: AudienceConfi
   let rawCount = 0;
 
   // 1. Fetch from Database if needed
-  if (config.selectAllContacts || config.includedLists.length > 0 || config.includedTags.length > 0) {
+  if (config.selectAllContacts || (config.includedLists && config.includedLists.length > 0) || (config.includedTags && config.includedTags.length > 0) || (config.includedContacts && config.includedContacts.length > 0)) {
     const contacts = await prisma.contact.findMany({
       where: {
         workspaceId,
         OR: [
           config.selectAllContacts ? {} : undefined,
-          config.includedLists.length > 0 ? { lists: { some: { id: { in: config.includedLists } } } } : undefined,
-          config.includedTags.length > 0 ? { tags: { some: { id: { in: config.includedTags } } } } : undefined,
+          config.includedLists && config.includedLists.length > 0 ? { lists: { some: { id: { in: config.includedLists } } } } : undefined,
+          config.includedTags && config.includedTags.length > 0 ? { tags: { some: { id: { in: config.includedTags } } } } : undefined,
+          config.includedContacts && config.includedContacts.length > 0 ? { id: { in: config.includedContacts } } : undefined,
         ].filter(Boolean) as any[]
       },
       select: { id: true, email: true }

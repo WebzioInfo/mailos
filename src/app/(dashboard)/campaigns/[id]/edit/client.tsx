@@ -9,7 +9,7 @@ import { updateCampaign } from "@/modules/campaigns/actions";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { AdvancedRecipientPicker } from "@/components/modules/campaigns/AdvancedRecipientPicker";
+import { EnterpriseAudienceBuilder } from "@/components/modules/campaigns/EnterpriseAudienceBuilder";
 
 const campaignSchema = z.object({
   name: z.string().min(1, "Campaign name is required"),
@@ -150,11 +150,11 @@ export default function EditCampaignClient({ campaign, smtpProfiles, templates, 
             <h3 className="font-semibold text-lg flex items-center gap-2">Recipients</h3>
           </div>
           <div className="p-6">
-            <AdvancedRecipientPicker 
-              contacts={contacts}
-              lists={lists}
-              tags={tags}
-              initialSelections={initialSelections}
+            <EnterpriseAudienceBuilder 
+              contacts={contacts || []}
+              lists={lists || []}
+              tags={tags || []}
+              initialSelections={audienceConfig}
               onChange={(config) => setAudienceConfig(config)}
             />
           </div>

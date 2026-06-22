@@ -4,6 +4,7 @@ import prisma from "@/lib/db";
 import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { DeleteButton } from "@/components/ui/DeleteButton";
 
 export default async function GroupsPage() {
   const cookieStore = await cookies();
@@ -72,19 +73,15 @@ export default async function GroupsPage() {
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                       </Link>
-                      <form action={async () => {
-                        'use server';
-                        const { deleteGroup } = await import('@/modules/groups/actions');
-                        await deleteGroup(group.id);
-                      }}>
-                        <button 
-                          type="submit"
-                          className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-red-50 dark:hover:bg-red-950/50 text-muted-foreground hover:text-red-500 transition-colors"
-                          title="Delete Group"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                        </button>
-                      </form>
+                      <DeleteButton 
+                        itemType="Group"
+                        itemName={group.name}
+                        onDelete={async () => {
+                          'use server';
+                          const { deleteGroup } = await import('@/modules/groups/actions');
+                          await deleteGroup(group.id);
+                        }}
+                      />
                     </div>
                   </td>
                 </tr>
