@@ -11,7 +11,7 @@ const publicRoutes = ['/login', '/signup', '/forgot-password', '/'];
 const authRoutes = ['/login', '/signup', '/forgot-password'];
 const publicApiRoutes = ['/api/auth/login', '/api/auth/signup', '/api/auth/logout', '/api/webhooks'];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('mailos_session')?.value;
 
